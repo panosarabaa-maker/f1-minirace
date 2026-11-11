@@ -3,24 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>F1 Live Telemetry & Track</title>
+  <title>F1 Telemetry & Animated Circuit</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root {
-      --bg-color: #0b0e14;
+      --bg-dark: #0b0e14;
       --card-bg: #161b22;
       --accent-red: #e10600;
       --accent-green: #00d26a;
       --accent-yellow: #ffb800;
+      --accent-cyan: #00f0ff;
       --text-main: #f0f6fc;
       --text-muted: #8b949e;
       --border-color: #30363d;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
 
     body {
-      background-color: var(--bg-color);
+      background-color: var(--bg-dark);
       color: var(--text-main);
       padding: 10px;
       display: flex;
@@ -39,7 +40,7 @@
       align-items: center;
     }
 
-    .title { font-size: 1rem; font-weight: bold; color: var(--accent-red); letter-spacing: 1px; }
+    .title { font-size: 0.95rem; font-weight: bold; color: var(--accent-cyan); letter-spacing: 1px; }
     .status-badge { background: rgba(0, 210, 106, 0.15); color: var(--accent-green); padding: 3px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; border: 1px solid var(--accent-green); }
 
     .card {
@@ -55,36 +56,40 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
     }
 
-    /* Track Map */
-    .track-container {
+    /* Track Layout */
+    .track-wrapper {
       position: relative;
       width: 100%;
-      height: 140px;
-      background: #0f1319;
+      height: 180px;
+      background: #0d1117;
       border-radius: 6px;
       border: 1px solid var(--border-color);
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
     }
 
-    .track-svg { width: 90%; height: 90%; }
+    svg.circuit {
+      width: 100%;
+      height: 100%;
+    }
 
-    /* Grid Table */
+    /* Driver Grid Table */
     table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
     th { text-align: left; color: var(--text-muted); padding-bottom: 4px; font-weight: 500; font-size: 0.7rem; }
     td { padding: 5px 0; border-top: 1px solid var(--border-color); }
 
-    .player-row { background: rgba(225, 6, 0, 0.2); font-weight: bold; }
+    .player-row { background: rgba(225, 6, 0, 0.25); font-weight: bold; }
     .player-row td { color: #fff; }
-    .driver-code { font-weight: bold; width: 40px; }
+    .driver-code { font-weight: bold; width: 45px; }
     .driver-team { color: var(--text-muted); font-size: 0.7rem; }
     .pos-num { width: 22px; text-align: center; }
 
-    /* Pit Lane */
+    /* Pit Box */
     .pit-box {
       background: rgba(255, 184, 0, 0.1);
       border: 1px dashed var(--accent-yellow);
@@ -104,27 +109,36 @@
 
   <header>
     <div>
-      <div class="title">🏎️ F1 LIVE TELEMETRY</div>
-      <div style="font-size: 0.7rem; color: var(--text-muted);" id="gp-info">Round <span id="current-lap">1</span> / 10</div>
+      <div class="title">🏎️ LIVE TELEMETRY CIRCUIT</div>
+      <div style="font-size: 0.7rem; color: var(--text-muted);" id="circuit-info">Silverstone • Lap <span id="current-lap">4</span> / 10</div>
     </div>
-    <div class="status-badge" id="race-status">GREEN FLAG</div>
+    <div class="status-badge" id="race-flag">GREEN FLAG</div>
   </header>
 
-  <!-- Track Map Card -->
+  <!-- Animated Real Track Layout -->
   <div class="card">
-    <div class="section-title">Live Track Position</div>
-    <div class="track-container">
-      <svg class="track-svg" viewBox="0 0 300 120">
-        <path d="M 40 60 Q 40 20 90 20 L 210 20 Q 260 20 260 60 Q 260 100 210 100 L 90 100 Q 40 100 40 60 Z" 
-              fill="none" stroke="#30363d" stroke-width="6" stroke-dasharray="6 6"/>
-        <!-- Player dot -->
-        <circle id="map-player-dot" cx="70" cy="60" r="6" fill="var(--accent-red)" />
-        <text id="map-player-text" x="70" y="45" fill="#fff" font-size="9" text-anchor="middle" font-weight="bold">HAM</text>
+    <div class="section-title">
+      <span>Live Track Positions</span>
+      <span style="color: var(--accent-cyan);" id="track-status">DRS ENABLED</span>
+    </div>
+    <div class="track-wrapper">
+      <svg class="circuit" viewBox="0 0 400 180">
+        <!-- Track Path -->
+        <path id="track-path" d="M 50 140 C 30 140 30 50 80 40 C 130 30 180 80 220 50 C 260 20 340 30 360 80 C 380 130 330 160 260 140 C 200 120 120 160 50 140 Z" 
+              fill="none" stroke="#21262d" stroke-width="12" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="M 50 140 C 30 140 30 50 80 40 C 130 30 180 80 220 50 C 260 20 340 30 360 80 C 380 130 330 160 260 140 C 200 120 120 160 50 140 Z" 
+              fill="none" stroke="#30363d" stroke-width="2" stroke-dasharray="4 4"/>
+        
+        <!-- Start/Finish Line -->
+        <line x1="50" y1="130" x2="50" y2="150" stroke="#fff" stroke-width="3"/>
+        
+        <!-- Dynamic Driver Dots Layer -->
+        <g id="driver-dots"></g>
       </svg>
     </div>
   </div>
 
-  <!-- Leaderboard Card -->
+  <!-- Leaderboard -->
   <div class="card">
     <div class="section-title">Full Driver Grid (10 / 10)</div>
     <table>
@@ -136,12 +150,11 @@
           <th style="text-align: right;">GAP / STATUS</th>
         </tr>
       </thead>
-      <tbody id="grid-body">
-      </tbody>
+      <tbody id="grid-body"></tbody>
     </table>
   </div>
 
-  <!-- Pit Lane Card -->
+  <!-- Pit Lane -->
   <div class="card">
     <div class="section-title">⛽ Pit Lane Action</div>
     <div id="pit-lane">
@@ -153,31 +166,48 @@
     const tg = window.Telegram ? window.Telegram.WebApp : null;
     if (tg) tg.expand();
 
-    const defaultDrivers = [
-      { code: "NOR", name: "L. Norris", team: "McLaren", status: "LEADER" },
-      { code: "VER", name: "M. Verstappen", team: "Red Bull", status: "+1.2s" },
-      { code: "PIA", name: "O. Piastri", team: "McLaren", status: "+2.4s" },
-      { code: "LEC", name: "C. Leclerc", team: "Ferrari", status: "+3.6s" },
-      { code: "HAM", name: "L. Hamilton", team: "Ferrari", status: "+4.8s", isPlayer: true },
-      { code: "RUS", name: "G. Russell", team: "Mercedes", status: "+6.0s" },
-      { code: "SAI", name: "C. Sainz", team: "Williams", status: "+7.2s" },
-      { code: "ALO", name: "F. Alonso", team: "Aston Martin", status: "+8.4s" },
-      { code: "ANT", name: "K. Antonelli", team: "Mercedes", status: "+9.6s" },
-      { code: "ALB", name: "A. Albon", team: "Williams", status: "+10.8s" }
-    ];
+    // Default driver roster if no live query string is provided
+    let defaultState = {
+      lap: 4,
+      total_laps: 10,
+      drivers: [
+        { code: "NOR", name: "L. Norris", team: "McLaren", gap: "LEADER", progress: 0.65 },
+        { code: "VER", name: "M. Verstappen", team: "Red Bull", gap: "+0.8s", progress: 0.62 },
+        { code: "PIA", name: "O. Piastri", team: "McLaren", gap: "+1.9s", progress: 0.58 },
+        { code: "LEC", name: "C. Leclerc", team: "Ferrari", gap: "+3.1s", progress: 0.53 },
+        { code: "HAM", name: "L. Hamilton", team: "Ferrari", gap: "+4.2s", isPlayer: true, progress: 0.48 },
+        { code: "RUS", name: "G. Russell", team: "Mercedes", gap: "+5.6s", progress: 0.42 },
+        { code: "SAI", name: "C. Sainz", team: "Williams", gap: "+7.0s", progress: 0.36 },
+        { code: "ALO", name: "F. Alonso", team: "Aston Martin", gap: "+8.3s", progress: 0.30 },
+        { code: "ANT", name: "K. Antonelli", team: "Mercedes", gap: "+9.7s", progress: 0.24 },
+        { code: "ALB", name: "A. Albon", team: "Williams", gap: "+11.1s", progress: 0.18 }
+      ],
+      pit: []
+    };
 
-    function updateUI(data) {
-      const drivers = data.drivers || defaultDrivers;
-      const pitDrivers = data.pit || [];
-      const lap = data.lap || 1;
+    function parseLiveData() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const dataParam = urlParams.get('data');
+      if (dataParam) {
+        try {
+          return JSON.parse(decodeURIComponent(dataParam));
+        } catch(e) {}
+      }
+      if (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+        try {
+          return JSON.parse(decodeURIComponent(tg.initDataUnsafe.start_param));
+        } catch(e) {}
+      }
+      return defaultState;
+    }
 
-      document.getElementById("current-lap").innerText = lap;
-
-      // Render Grid
+    function renderUI(state) {
+      document.getElementById("current-lap").innerText = state.lap || 1;
+      
+      // 1. Render Table
       const tbody = document.getElementById("grid-body");
       tbody.innerHTML = "";
-
-      drivers.forEach((d, idx) => {
+      state.drivers.forEach((d, idx) => {
         const row = document.createElement("tr");
         if (d.isPlayer || d.code === "HAM") row.className = "player-row";
 
@@ -185,15 +215,15 @@
           <td class="pos-num">${idx + 1}</td>
           <td class="driver-code">${d.code}</td>
           <td class="driver-team">${d.team}</td>
-          <td style="text-align: right; font-size: 0.75rem;">${d.status || (idx === 0 ? 'LEADER' : '+' + (idx * 1.2).toFixed(1) + 's')}</td>
+          <td style="text-align: right; font-size: 0.75rem;">${d.gap || (idx === 0 ? 'LEADER' : '+' + (idx * 1.2).toFixed(1) + 's')}</td>
         `;
         tbody.appendChild(row);
       });
 
-      // Render Pit Lane
+      // 2. Render Pit Lane
       const pitBox = document.getElementById("pit-lane");
-      if (pitDrivers.length > 0) {
-        pitBox.innerHTML = pitDrivers.map(d => `
+      if (state.pit && state.pit.length > 0) {
+        pitBox.innerHTML = state.pit.map(d => `
           <div class="pit-box">
             <div>🏎️ <strong>${d.code}</strong> (${d.team})</div>
             <div class="pit-status">BOX BOX</div>
@@ -202,17 +232,68 @@
       } else {
         pitBox.innerHTML = `<div class="empty-pit">No cars currently in Pit Lane</div>`;
       }
+
+      // 3. Render Animated Drivers on Circuit
+      renderTrackDots(state.drivers);
     }
 
-    // Check if data is passed via Telegram WebApp start_param
-    let receivedData = null;
-    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
-      try {
-        receivedData = JSON.parse(decodeURIComponent(tg.initDataUnsafe.start_param));
-      } catch (e) {}
+    function renderTrackDots(drivers) {
+      const trackPath = document.getElementById("track-path");
+      const pathLength = trackPath.getTotalLength();
+      const dotsGroup = document.getElementById("driver-dots");
+      dotsGroup.innerHTML = "";
+
+      drivers.forEach((d, idx) => {
+        // Calculate point along SVG track path
+        let prog = d.progress !== undefined ? d.progress : (1 - (idx * 0.05));
+        if (prog < 0) prog += 1;
+        const pt = trackPath.getPointAtLength(prog * pathLength);
+
+        const isPlayer = d.isPlayer || d.code === "HAM";
+        const dotColor = isPlayer ? "#e10600" : (idx === 0 ? "#00f0ff" : "#ffb800");
+
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+        // Glow ring for player
+        if (isPlayer) {
+          const ring = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          ring.setAttribute("cx", pt.x);
+          ring.setAttribute("cy", pt.y);
+          ring.setAttribute("r", "10");
+          ring.setAttribute("fill", "none");
+          ring.setAttribute("stroke", "#e10600");
+          ring.setAttribute("stroke-width", "2");
+          ring.setAttribute("opacity", "0.6");
+          g.appendChild(ring);
+        }
+
+        // Car Dot
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", pt.x);
+        circle.setAttribute("cy", pt.y);
+        circle.setAttribute("r", isPlayer ? "6" : "4.5");
+        circle.setAttribute("fill", dotColor);
+        circle.setAttribute("stroke", "#ffffff");
+        circle.setAttribute("stroke-width", "1");
+
+        // Code Label
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", pt.x);
+        text.setAttribute("y", pt.y - 8);
+        text.setAttribute("fill", isPlayer ? "#ffffff" : "#8b949e");
+        text.setAttribute("font-size", isPlayer ? "10" : "8");
+        text.setAttribute("font-weight", "bold");
+        text.setAttribute("text-anchor", "middle");
+        text.textContent = d.code;
+
+        g.appendChild(circle);
+        g.appendChild(text);
+        dotsGroup.appendChild(g);
+      });
     }
 
-    updateUI(receivedData || { drivers: defaultDrivers, pit: [], lap: 1 });
+    const state = parseLiveData();
+    renderUI(state);
   </script>
 </body>
 </html>
