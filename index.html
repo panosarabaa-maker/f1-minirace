@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>F1 Strategy Live Telemetry</title>
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&display=swap');
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #060913;
+            color: #e2e8f0;
+            user-select: none;
+            touch-action: manipulation;
+            overflow-x: hidden;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Telemetry Neon Glow Effects */
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+            border-color: #06b6d4;
+        }
+
+        .glow-green {
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+            border-color: #22c55e;
+        }
+
+        .glow-red {
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+            border-color: #ef4444;
+        }
+
+        .glow-yellow {
+            box-shadow: 0 0 15px rgba(234, 179, 8, 0.4);
+            border-color: #eab308;
+        }
+
+        .text-glow-cyan {
+            text-shadow: 0 0 8px rgba(6, 182, 212, 0.7);
+        }
+
+        .text-glow-red {
+            text-shadow: 0 0 8px rgba(239, 68, 68, 0.7);
+        }
+
+        /* SVG Circuit Track Pulse */
+        .track-path {
+            stroke-dasharray: 8, 8;
+            animation: trackDash 30s linear infinite;
+        }
+
+        @keyframes trackDash {
+            to { stroke-dashoffset: -1000; }
+        }
+
+        /* CRT Grid Background Effect */
+        .crt-bg {
+            background-image: linear-gradient(rgba(14, 165, 233, 0.03) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(14, 165, 233, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="crt-bg min-h-screen flex flex-col justify-between p-3 pb-6 max-w-md mx-auto relative">
+
+    <!-- TOP TELEMETRY BAR -->
+    <header class="bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl p-3 mb-3 shadow-lg">
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-2 mb-2">
+            <div class="flex items-center gap-2">
+                <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="font-orbitron font-extrabold text-xs tracking-wider text-cyan-400">ROUND 5 / 10</span>
+            </div>
+            <div class="text-right">
+                <span id="track-name" class="font-orbitron text-xs font-semibold text-slate-300">SILVERSTONE 🇬🇧</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="bg-slate-950/60 p-1.5 rounded-lg border border-slate-800">
+                <div class="text-[10px] text-slate-400 font-bold uppercase">Lap Progress</div>
+                <div class="font-orbitron font-black text-sm text-yellow-400" id="lap-counter">LAP 4/10</div>
+            </div>
+            <div class="bg-slate-950/60 p-1.5 rounded-lg border border-slate-800">
+                <div class="text-[10px] text-slate-400 font-bold uppercase">Weather</div>
+                <div class="font-bold text-xs text-sky-300 flex items-center justify-center gap-1 mt-0.5" id="weather-val">
+                    <i class="fa-solid fa-cloud-sun"></i> 29°C DRY
+                </div>
+            </div>
+            <div class="bg-slate-950/60 p-1.5 rounded-lg border border-slate-800">
+                <div class="text-[10px] text-slate-400 font-bold uppercase">Track Status</div>
+                <div class="font-orbitron font-bold text-xs text-emerald-400 mt-0.5" id="track-status">GREEN FLAG</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- LIVE CIRCUIT GRAPHIC CANVAS (SVG TRACK MAP) -->
+    <main class="relative bg-slate-950/80 border border-cyan-500/30 rounded-2xl p-4 my-1 glow-cyan flex-1 flex flex-col justify-between overflow-hidden min-h-[260px]">
+        
+        <!-- CRT Scanline overlay -->
+        <div class="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/5 to-transparent opacity-20 pointer-events-none"></div>
+
+        <!-- Track Header Overlay -->
+        <div class="flex justify-between items-start z-10">
+            <div>
+                <span class="bg-cyan-950 text-cyan-400 border border-cyan-500/40 text-[10px] font-orbitron font-bold px-2 py-0.5 rounded">
+                    LIVE TRACK POSITION
+                </span>
+            </div>
+            <div class="text-right">
+                <div class="text-[10px] text-slate-400 font-bold">DRS ZONE 2</div>
+                <div class="text-[10px] font-orbitron text-emerald-400 font-bold">AVAILABLE</div>
+            </div>
+        </div>
+
+        <!-- Interactive Vector Circuit -->
+        <div class="relative w-full h-48 my-auto flex items-center justify-center">
+            <svg id="circuit-svg" class="w-full h-full max-h-48 drop-shadow-[0_0_10px_rgba(6,182,212,0.3)]" viewBox="0 0 400 240">
+                <!-- Circuit Inner Layout Glow -->
+                <path id="track-bg" d="M 80,180 L 280,180 Q 350,180 350,130 Q 350,80 280,70 L 210,70 Q 180,70 160,40 Q 140,10 90,30 Q 50,50 50,110 Q 50,180 80,180 Z" 
+                      fill="none" stroke="#0f172a" stroke-width="18" stroke-linejoin="round" />
+                
+                <!-- Circuit Outline Base -->
+                <path d="M 80,180 L 280,180 Q 350,180 350,130 Q 350,80 280,70 L 210,70 Q 180,70 160,40 Q 140,10 90,30 Q 50,50 50,110 Q 50,180 80,180 Z" 
+                      fill="none" stroke="#1e293b" stroke-width="8" stroke-linejoin="round" />
+
+                <!-- Sector Dash Animated Line -->
+                <path class="track-path" d="M 80,180 L 280,180 Q 350,180 350,130 Q 350,80 280,70 L 210,70 Q 180,70 160,40 Q 140,10 90,30 Q 50,50 50,110 Q 50,180 80,180 Z" 
+                      fill="none" stroke="#06b6d4" stroke-width="3" stroke-dasharray="6,6" />
+
+                <!-- Finish Line -->
+                <line x1="80" y1="170" x2="80" y2="190" stroke="#ffffff" stroke-width="4" stroke-dasharray="3,3" />
+
+                <!-- Player Car Marker (Animated along path) -->
+                <g id="car-marker" transform="translate(80, 180)">
+                    <!-- Outer Glow Ring -->
+                    <circle r="9" fill="rgba(239, 68, 68, 0.3)" class="animate-ping" />
+                    <!-- Solid Car Dot -->
+                    <circle r="6" fill="#ef4444" stroke="#ffffff" stroke-width="2" />
+                    <!-- Driver Tag -->
+                    <rect x="-14" y="-22" width="28" height="12" rx="3" fill="#090d16" stroke="#ef4444" stroke-width="1"/>
+                    <text x="0" y="-13" text-anchor="middle" fill="#ffffff" font-size="8" font-family="Orbitron" font-weight="900">HAM</text>
+                </g>
+
+                <!-- Competitor Ghost Car -->
+                <g id="rival-marker" transform="translate(140, 180)">
+                    <circle r="4.5" fill="#eab308" stroke="#000000" stroke-width="1" />
+                    <text x="0" y="-8" text-anchor="middle" fill="#eab308" font-size="7" font-family="Orbitron" font-weight="700">VER</text>
+                </g>
+            </svg>
+        </div>
+
+        <!-- Event Radio Box -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 z-10 flex items-center gap-3">
+            <div class="w-7 h-7 rounded-lg bg-cyan-950 border border-cyan-500/50 flex items-center justify-center text-cyan-400 text-xs shrink-0">
+                <i class="fa-solid fa-walkie-talkie"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Race Control Broadcast</div>
+                <div id="radio-msg" class="text-xs font-semibold text-cyan-300 truncate">P2 - Gap to VER: +1.2s. Push mode available!</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- LIVE TELEMETRY DASHBOARD -->
+    <section class="grid grid-cols-2 gap-2 my-2">
+        <!-- Position & Delta Card -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-between">
+            <div class="flex justify-between items-center">
+                <span class="text-[10px] font-bold text-slate-400 uppercase">Driver Pos</span>
+                <span class="text-[10px] font-orbitron text-emerald-400 font-bold">DELTA: -0.4s</span>
+            </div>
+            <div class="flex items-baseline gap-2 my-1">
+                <span id="pos-display" class="font-orbitron font-black text-3xl text-red-500 text-glow-red">P2</span>
+                <span class="text-xs text-slate-400 font-semibold">/ 10</span>
+            </div>
+            <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+                <div id="pos-bar" class="bg-red-500 h-full w-4/5 rounded-full"></div>
+            </div>
+        </div>
+
+        <!-- Tire Degradation Card -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-between">
+            <div class="flex justify-between items-center">
+                <span class="text-[10px] font-bold text-slate-400 uppercase">Tire Compound</span>
+                <span id="tire-type" class="text-[10px] font-orbitron text-red-400 font-bold">🔴 SOFT</span>
+            </div>
+            <div class="flex items-baseline justify-between my-1">
+                <span class="text-xs text-slate-400 font-bold">Health</span>
+                <span id="tire-val" class="font-orbitron font-extrabold text-lg text-emerald-400">76%</span>
+            </div>
+            <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+                <div id="tire-bar" class="bg-emerald-500 h-full w-[76%] rounded-full transition-all duration-300"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- STEERING WHEEL ACTION CONTROLS -->
+    <footer class="space-y-2 mt-1">
+        <div class="text-[10px] font-orbitron text-center text-slate-500 uppercase tracking-widest font-bold">
+            Tactical Wheel Controls
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+            <!-- Push Button -->
+            <button onclick="handleAction('push')" 
+                    class="bg-gradient-to-b from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 active:scale-95 transition-all text-white border-2 border-red-400/50 rounded-xl p-3 shadow-lg glow-red flex flex-col items-center justify-center gap-1 group">
+                <i class="fa-solid fa-gauge-high text-base group-active:animate-bounce"></i>
+                <span class="font-orbitron font-black text-xs tracking-wider">PUSH</span>
+                <span class="text-[8px] text-red-200 uppercase font-bold">+OVERTAKE</span>
+            </button>
+
+            <!-- Conserve Button -->
+            <button onclick="handleAction('save')" 
+                    class="bg-gradient-to-b from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 active:scale-95 transition-all text-white border-2 border-emerald-400/50 rounded-xl p-3 shadow-lg glow-green flex flex-col items-center justify-center gap-1">
+                <i class="fa-solid fa-leaf text-base"></i>
+                <span class="font-orbitron font-black text-xs tracking-wider">SAVE</span>
+                <span class="text-[8px] text-emerald-200 uppercase font-bold">CONSERVE</span>
+            </button>
+
+            <!-- Pit Box Button -->
+            <button onclick="handleAction('pit')" 
+                    class="bg-gradient-to-b from-yellow-600 to-yellow-800 hover:from-yellow-500 hover:to-yellow-700 active:scale-95 transition-all text-white border-2 border-yellow-400/50 rounded-xl p-3 shadow-lg glow-yellow flex flex-col items-center justify-center gap-1">
+                <i class="fa-solid fa-wrench text-base"></i>
+                <span class="font-orbitron font-black text-xs tracking-wider">PIT BOX</span>
+                <span class="text-[8px] text-yellow-200 uppercase font-bold">BOX BOX</span>
+            </button>
+        </div>
+    </footer>
+
+    <!-- INTERACTIVE PIT STOP MODAL -->
+    <div id="pit-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-xs p-4 shadow-2xl space-y-3 text-center">
+            <h3 class="font-orbitron font-black text-lg text-yellow-400 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-gas-pump"></i> SELECT COMPOUND
+            </h3>
+            <p class="text-xs text-slate-400">Choose fresh tires for your pit window:</p>
+            <div class="grid grid-cols-1 gap-2">
+                <button onclick="selectPitTire('soft')" class="bg-slate-800 border border-red-500/50 hover:bg-slate-700 text-white font-orbitron font-bold text-xs p-2.5 rounded-xl flex justify-between items-center">
+                    <span>🔴 SOFT COMPOUND</span>
+                    <span class="text-[10px] text-red-400">Max Pace</span>
+                </button>
+                <button onclick="selectPitTire('medium')" class="bg-slate-800 border border-yellow-500/50 hover:bg-slate-700 text-white font-orbitron font-bold text-xs p-2.5 rounded-xl flex justify-between items-center">
+                    <span>🟡 MEDIUM COMPOUND</span>
+                    <span class="text-[10px] text-yellow-400">Balanced</span>
+                </button>
+                <button onclick="selectPitTire('hard')" class="bg-slate-800 border border-slate-400/50 hover:bg-slate-700 text-white font-orbitron font-bold text-xs p-2.5 rounded-xl flex justify-between items-center">
+                    <span>⚪ HARD COMPOUND</span>
+                    <span class="text-[10px] text-slate-300">High Life</span>
+                </button>
+            </div>
+            <button onclick="closePitModal()" class="w-full text-xs font-bold text-slate-500 py-1">Cancel</button>
+        </div>
+    </div>
+
+    <!-- JS TELEMETRY SIMULATOR LOGIC -->
+    <script>
+        // Telegram WebApp SDK Initialization
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+            // Apply Telegram Theme Colors if available
+            document.body.style.backgroundColor = tg.backgroundColor || "#060913";
+        }
+
+        // Race State Simulation Variables
+        let currentLap = 4;
+        const totalLaps = 10;
+        let playerPos = 2;
+        let tireWear = 76;
+        let currentTire = 'soft';
+        let progressDistance = 0.15; // 0.0 to 1.0 along circuit path
+
+        // Audio Beep Feedback (Web Audio API)
+        function playBeep(freq = 600, duration = 0.08) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.frequency.value = freq;
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + duration);
+                osc.stop(ctx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        // Animate Driver Car along SVG Track Path
+        const trackPath = document.getElementById('track-bg');
+        const carMarker = document.getElementById('car-marker');
+        const rivalMarker = document.getElementById('rival-marker');
+
+        function updateCarPositions() {
+            if (!trackPath) return;
+            const pathLength = trackPath.getTotalLength();
+            
+            // Calculate Player Position on SVG path
+            const playerPoint = trackPath.getPointAtLength((progressDistance % 1) * pathLength);
+            carMarker.setAttribute('transform', `translate(${playerPoint.x}, ${playerPoint.y})`);
+
+            // Calculate Rival (P1) Position
+            const rivalDistance = (progressDistance + 0.04) % 1;
+            const rivalPoint = trackPath.getPointAtLength(rivalDistance * pathLength);
+            rivalMarker.setAttribute('transform', `translate(${rivalPoint.x}, ${rivalPoint.y})`);
+        }
+
+        // Continuous Loop for Lap Progress Animation
+        setInterval(() => {
+            progressDistance += 0.002;
+            if (progressDistance >= 1.0) {
+                progressDistance = 0.0;
+                if (currentLap < totalLaps) {
+                    currentLap++;
+                    document.getElementById('lap-counter').innerText = `LAP ${currentLap}/${totalLaps}`;
+                }
+            }
+            updateCarPositions();
+        }, 50);
+
+        // Action Handlers
+        function handleAction(actionType) {
+            playBeep(800, 0.06);
+
+            const radio = document.getElementById('radio-msg');
+            const tireVal = document.getElementById('tire-val');
+            const tireBar = document.getElementById('tire-bar');
+            const posDisplay = document.getElementById('pos-display');
+
+            if (actionType === 'push') {
+                tireWear = Math.max(0, tireWear - 12);
+                if (Math.random() > 0.4 && playerPos > 1) {
+                    playerPos = 1;
+                    posDisplay.innerText = 'P1';
+                    posDisplay.className = 'font-orbitron font-black text-3xl text-emerald-400 text-glow-cyan';
+                    radio.innerText = "⚔️ OVERTAKE SUCCESSFUL! You are leading!";
+                } else {
+                    radio.innerText = "🔥 Pushing hard! Setting purple sector times.";
+                }
+            } else if (actionType === 'save') {
+                tireWear = Math.max(0, tireWear - 4);
+                radio.innerText = "🛡️ Conserving compound and managing temps.";
+            } else if (actionType === 'pit') {
+                document.getElementById('pit-modal').classList.remove('hidden');
+                return;
+            }
+
+            // Update Tire Gauge UI
+            tireVal.innerText = `${tireWear}%`;
+            tireBar.style.width = `${tireWear}%`;
+            if (tireWear < 30) {
+                tireBar.className = "bg-red-500 h-full rounded-full transition-all duration-300";
+            } else if (tireWear < 60) {
+                tireBar.className = "bg-yellow-500 h-full rounded-full transition-all duration-300";
+            }
+
+            // Send WebApp Data back to Python Telegram Bot if running inside Telegram
+            if (tg && tg.sendData) {
+                tg.sendData(JSON.stringify({
+                    action: actionType,
+                    lap: currentLap,
+                    tireWear: tireWear,
+                    position: playerPos
+                }));
+            }
+        }
+
+        function selectPitTire(compound) {
+            playBeep(1000, 0.1);
+            tireWear = 100;
+            currentTire = compound;
+            
+            const tireType = document.getElementById('tire-type');
+            const tireVal = document.getElementById('tire-val');
+            const tireBar = document.getElementById('tire-bar');
+            const radio = document.getElementById('radio-msg');
+
+            tireVal.innerText = "100%";
+            tireBar.style.width = "100%";
+            tireBar.className = "bg-emerald-500 h-full rounded-full transition-all duration-300";
+
+            if (compound === 'soft') tireType.innerText = '🔴 SOFT';
+            if (compound === 'medium') tireType.innerText = '🟡 MED';
+            if (compound === 'hard') tireType.innerText = '⚪ HARD';
+
+            radio.innerText = `⛽ BOX BOX BOX! Fresh ${compound.toUpperCase()} tires fitted!`;
+            closePitModal();
+
+            if (tg && tg.sendData) {
+                tg.sendData(JSON.stringify({ action: 'pit_stop', compound: compound }));
+            }
+        }
+
+        function closePitModal() {
+            document.getElementById('pit-modal').classList.add('hidden');
+        }
+
+        // Initialize SVG Positions
+        window.onload = () => {
+            updateCarPositions();
+        };
+    </script>
+</body>
+</html>
