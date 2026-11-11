@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>F1 Live Telemetry & Pit Lane</title>
+  <title>F1 Live Telemetry & Track</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root {
@@ -22,76 +22,82 @@
     body {
       background-color: var(--bg-color);
       color: var(--text-main);
-      padding: 12px;
+      padding: 10px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
+      font-size: 0.85rem;
     }
 
     header {
       background: var(--card-bg);
       border: 1px solid var(--border-color);
       border-radius: 8px;
-      padding: 12px;
+      padding: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .title { font-size: 1.1rem; font-weight: bold; color: var(--accent-red); letter-spacing: 1px; }
-    .status-badge { background: rgba(0, 210, 106, 0.15); color: var(--accent-green); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; border: 1px solid var(--accent-green); }
+    .title { font-size: 1rem; font-weight: bold; color: var(--accent-red); letter-spacing: 1px; }
+    .status-badge { background: rgba(0, 210, 106, 0.15); color: var(--accent-green); padding: 3px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; border: 1px solid var(--accent-green); }
 
-    .grid-container {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
-
-    .section-title {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-    }
-
-    .leaderboard-card, .pit-card {
+    .card {
       background: var(--card-bg);
       border: 1px solid var(--border-color);
       border-radius: 8px;
       padding: 10px;
     }
 
-    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-    th { text-align: left; color: var(--text-muted); padding-bottom: 6px; font-weight: 500; }
-    td { padding: 6px 0; border-top: 1px solid var(--border-color); }
-
-    .player-row { background: rgba(225, 6, 0, 0.15); font-weight: bold; }
-    .player-row td { color: #fff; }
-    
-    .driver-code { font-weight: bold; width: 45px; }
-    .driver-team { color: var(--text-muted); font-size: 0.75rem; }
-    .pos-num { width: 25px; text-align: center; }
-
-    .pit-lane-container {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+    .section-title {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
     }
 
+    /* Track Map */
+    .track-container {
+      position: relative;
+      width: 100%;
+      height: 140px;
+      background: #0f1319;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .track-svg { width: 90%; height: 90%; }
+
+    /* Grid Table */
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    th { text-align: left; color: var(--text-muted); padding-bottom: 4px; font-weight: 500; font-size: 0.7rem; }
+    td { padding: 5px 0; border-top: 1px solid var(--border-color); }
+
+    .player-row { background: rgba(225, 6, 0, 0.2); font-weight: bold; }
+    .player-row td { color: #fff; }
+    .driver-code { font-weight: bold; width: 40px; }
+    .driver-team { color: var(--text-muted); font-size: 0.7rem; }
+    .pos-num { width: 22px; text-align: center; }
+
+    /* Pit Lane */
     .pit-box {
       background: rgba(255, 184, 0, 0.1);
       border: 1px dashed var(--accent-yellow);
       border-radius: 6px;
-      padding: 8px 12px;
+      padding: 6px 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
+      margin-top: 4px;
     }
-
     .pit-status { color: var(--accent-yellow); font-weight: bold; }
-    .empty-pit { color: var(--text-muted); font-style: italic; font-size: 0.75rem; text-align: center; padding: 8px; }
+    .empty-pit { color: var(--text-muted); font-style: italic; font-size: 0.7rem; text-align: center; padding: 4px; }
   </style>
 </head>
 <body>
@@ -99,33 +105,47 @@
   <header>
     <div>
       <div class="title">🏎️ F1 LIVE TELEMETRY</div>
-      <div style="font-size: 0.75rem; color: var(--text-muted);" id="gp-name">Bahrain Grand Prix</div>
+      <div style="font-size: 0.7rem; color: var(--text-muted);" id="gp-info">Round <span id="current-lap">1</span> / 10</div>
     </div>
-    <div class="status-badge" id="race-status">LIVE</div>
+    <div class="status-badge" id="race-status">GREEN FLAG</div>
   </header>
 
-  <div class="grid-container">
-    <div class="leaderboard-card">
-      <div class="section-title">Full Driver Grid (10 / 10)</div>
-      <table>
-        <thead>
-          <tr>
-            <th class="pos-num">#</th>
-            <th>DRIVER</th>
-            <th>TEAM</th>
-            <th style="text-align: right;">STATUS</th>
-          </tr>
-        </thead>
-        <tbody id="grid-body">
-        </tbody>
-      </table>
+  <!-- Track Map Card -->
+  <div class="card">
+    <div class="section-title">Live Track Position</div>
+    <div class="track-container">
+      <svg class="track-svg" viewBox="0 0 300 120">
+        <path d="M 40 60 Q 40 20 90 20 L 210 20 Q 260 20 260 60 Q 260 100 210 100 L 90 100 Q 40 100 40 60 Z" 
+              fill="none" stroke="#30363d" stroke-width="6" stroke-dasharray="6 6"/>
+        <!-- Player dot -->
+        <circle id="map-player-dot" cx="70" cy="60" r="6" fill="var(--accent-red)" />
+        <text id="map-player-text" x="70" y="45" fill="#fff" font-size="9" text-anchor="middle" font-weight="bold">HAM</text>
+      </svg>
     </div>
+  </div>
 
-    <div class="pit-card">
-      <div class="section-title">⛽ Pit Lane Action</div>
-      <div class="pit-lane-container" id="pit-lane">
-        <div class="empty-pit">No cars currently in Pit Lane</div>
-      </div>
+  <!-- Leaderboard Card -->
+  <div class="card">
+    <div class="section-title">Full Driver Grid (10 / 10)</div>
+    <table>
+      <thead>
+        <tr>
+          <th class="pos-num">#</th>
+          <th>DRIVER</th>
+          <th>TEAM</th>
+          <th style="text-align: right;">GAP / STATUS</th>
+        </tr>
+      </thead>
+      <tbody id="grid-body">
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pit Lane Card -->
+  <div class="card">
+    <div class="section-title">⛽ Pit Lane Action</div>
+    <div id="pit-lane">
+      <div class="empty-pit">No cars currently in Pit Lane</div>
     </div>
   </div>
 
@@ -146,7 +166,14 @@
       { code: "ALB", name: "A. Albon", team: "Williams", status: "+10.8s" }
     ];
 
-    function renderBoard(drivers, pitDrivers = []) {
+    function updateUI(data) {
+      const drivers = data.drivers || defaultDrivers;
+      const pitDrivers = data.pit || [];
+      const lap = data.lap || 1;
+
+      document.getElementById("current-lap").innerText = lap;
+
+      // Render Grid
       const tbody = document.getElementById("grid-body");
       tbody.innerHTML = "";
 
@@ -156,19 +183,20 @@
 
         row.innerHTML = `
           <td class="pos-num">${idx + 1}</td>
-          <td class="driver-code">${d.code} <span style="font-size: 0.7rem; font-weight: normal;">${d.name || ''}</span></td>
+          <td class="driver-code">${d.code}</td>
           <td class="driver-team">${d.team}</td>
-          <td style="text-align: right; font-size: 0.8rem;">${d.status || (idx === 0 ? 'LEADER' : '+' + (idx * 1.2).toFixed(1) + 's')}</td>
+          <td style="text-align: right; font-size: 0.75rem;">${d.status || (idx === 0 ? 'LEADER' : '+' + (idx * 1.2).toFixed(1) + 's')}</td>
         `;
         tbody.appendChild(row);
       });
 
+      // Render Pit Lane
       const pitBox = document.getElementById("pit-lane");
       if (pitDrivers.length > 0) {
         pitBox.innerHTML = pitDrivers.map(d => `
           <div class="pit-box">
             <div>🏎️ <strong>${d.code}</strong> (${d.team})</div>
-            <div class="pit-status">BOX BOX (Changing Tires)</div>
+            <div class="pit-status">BOX BOX</div>
           </div>
         `).join("");
       } else {
@@ -176,16 +204,15 @@
       }
     }
 
+    // Check if data is passed via Telegram WebApp start_param
+    let receivedData = null;
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
       try {
-        const parsed = JSON.parse(decodeURIComponent(tg.initDataUnsafe.start_param));
-        if (parsed.drivers) renderBoard(parsed.drivers, parsed.pit || []);
-      } catch (e) {
-        renderBoard(defaultDrivers);
-      }
-    } else {
-      renderBoard(defaultDrivers);
+        receivedData = JSON.parse(decodeURIComponent(tg.initDataUnsafe.start_param));
+      } catch (e) {}
     }
+
+    updateUI(receivedData || { drivers: defaultDrivers, pit: [], lap: 1 });
   </script>
 </body>
 </html>
